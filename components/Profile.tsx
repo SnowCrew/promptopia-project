@@ -5,8 +5,8 @@ interface ProfileProps {
   name: string;
   desc: string;
   data: PromptFromDB[];
-  handleEdit: (post: PromptFromDB) => void;
-  handleDelete: (post: PromptFromDB) => void;
+  handleEdit?: (post: PromptFromDB) => void;
+  handleDelete?: (post: PromptFromDB) => void;
 }
 
 const Profile = ({

@@ -4,10 +4,23 @@ import { useEffect, useState } from "react";
 import PromptCard from "./PromptCard";
 import { Prompt } from "@/app/create-prompt/page";
 
+interface PromptCreator {
+  email: string;
+  username: string;
+  _id: string;
+  image: string;
+}
+export interface PromptFromDB extends Prompt {
+  _id: "string";
+  creator: PromptCreator;
+}
+
 type PromptCardListProps = {
   data: PromptFromDB[];
   handleTagClick: (tag: string) => void;
 };
+
+type SearchConstrains = "tag" | "any";
 
 const PromptCardList = ({ data, handleTagClick }: PromptCardListProps) => {
   return (
@@ -25,30 +38,67 @@ const PromptCardList = ({ data, handleTagClick }: PromptCardListProps) => {
   );
 };
 
-interface PromptCreator {
-  email: string;
-  username: string;
-  _id: string;
-  image: string;
-}
-
-export interface PromptFromDB extends Prompt {
-  _id: "string";
-  creator: PromptCreator;
-}
-
 const Feed = () => {
-  const [searchText, setSearchText] = useState("");
-  const [posts, setPosts] = useState<PromptFromDB[]>([]);
+  const [allPosts, setAllPosts] = useState<PromptFromDB[]>([]);
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {};
+  //searching
+  const [searchText, setSearchText] = useState("");
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(
+    null
+  );
+  const [searchedResults, setSearchedResults] = useState<PromptFromDB[]>([]);
+  const searchCallback = (searchStr: string) => {
+    const searchRes = filterPosts(searchStr);
+    setSearchedResults(searchRes);
+  };
+
+  const filterPosts = (
+    searchStr: string,
+    constrains: SearchConstrains = "any"
+  ) => {
+    const regex = new RegExp(searchStr, "i");
+
+    if (constrains === "tag") {
+      return allPosts.filter((item) => regex.test(item.tag));
+    }
+
+    return allPosts.filter(
+      (item) =>
+        regex.test(item.creator.username) ||
+        regex.test(item.creator.email) ||
+        regex.test(item.tag) ||
+        regex.test(item.prompt)
+    );
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+    setSearchText(e.target.value);
+
+    // debounce method
+    setSearchTimeout(
+      setTimeout(() => {
+        const searchResult = filterPosts(e.target.value);
+        setSearchedResults(searchResult);
+      }, 500)
+    );
+  };
+
+  const handleTagClick = (tagName: string) => {
+    setSearchText(tagName);
+
+    const searchResult = filterPosts(tagName, "tag");
+    setSearchedResults(searchResult);
+  };
 
   useEffect(() => {
     const fetchPosts = async () => {
       const response = await fetch("/api/prompt");
       const data = await response.json();
 
-      setPosts(data);
+      setAllPosts(data);
     };
     fetchPosts();
   }, []);
@@ -66,7 +116,14 @@ const Feed = () => {
         />
       </form>
 
-      <PromptCardList data={posts} handleTagClick={() => {}} />
+      {searchText ? (
+        <PromptCardList
+          data={searchedResults}
+          handleTagClick={handleTagClick}
+        />
+      ) : (
+        <PromptCardList data={allPosts} handleTagClick={handleTagClick} />
+      )}
     </section>
   );
 };
